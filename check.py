@@ -1,7 +1,7 @@
-import time
-
 from bs4 import BeautifulSoup
-
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from database import get_data, delete_data
 import requests
 import re
@@ -11,12 +11,11 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium import webdriver
 
 options = Options()
-options.add_argument("--headless")  # Запуск без графического интерфейса
+options.add_argument("--headless")
 options.add_argument("--disable-gpu")
 options.add_argument("--window-size=1920x1080")
 options.add_argument("--no-sandbox")
 
-# Правильный способ установки драйвера
 service = Service(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service, options=options)
 
@@ -37,29 +36,39 @@ headers = {
 data = get_data()
 if data:
     for title, url, xpath in data:
+        print(title)
+        print(url)
+        print(xpath)
         if title == 'Пусто' or url == 'Пусто' or xpath == 'Пусто':
             continue
         request = requests.get(url, headers=headers)
         # print(request.text)
         if 'text/html' in request.headers.get('content-type', ''):
-            match = re.match(r'//(\w+)\[@class="([^"]+)"\]', xpath)
+            print(1)
+            # match = re.match(r'//(\w+)\[@class="([^"]+)"\]', xpath)
+            match = re.match(r"//(\w+)\[@class=['\"]([^'\"]+)['\"]\]", xpath)
+
             if match:
                 x1, y1 = match.groups()
+                print(2)
 
                 # print(f"XPath: {xpath}")
-                # print(f"x1 (тег): {x1}, y1 (класс): {y1}")
+                print(f"{x1},{y1}")
 
             soup = BeautifulSoup(request.text, "html.parser")
             check = soup.find_all(x1, class_=y1)
+
             print(check)
             if not check:
                 driver.get(url)
-                time.sleep(3)  # Ждём загрузки страницы
-
-                soup = BeautifulSoup(driver.page_source, "html.parser")
-                check = soup.find_all(x1, class_=y1)
-
-            print(check)
+                try:
+                    # Ожидаем появления элемента с нужным классом (ждать до 10 сек)
+                    check = WebDriverWait(driver, 10).until(
+                        EC.presence_of_all_elements_located((By.CLASS_NAME, y1))
+                    )
+                    print("Selenium нашел элементы:", check)
+                except:
+                    print("Selenium не нашел элементы")
             print('___________________________________________________________________')
 
         # print(title, url, xpath)
