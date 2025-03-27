@@ -1,14 +1,24 @@
+import time
+
 from bs4 import BeautifulSoup
 
 from database import get_data, delete_data
 import requests
 import re
-from selenium import webdriver
-from webdriver.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium import webdriver
 
-service = Service(executable_path=ChromeDriverManager().install())
-driver = webdriver.Chrome(service=service)
+options = Options()
+options.add_argument("--headless")  # Запуск без графического интерфейса
+options.add_argument("--disable-gpu")
+options.add_argument("--window-size=1920x1080")
+options.add_argument("--no-sandbox")
+
+# Правильный способ установки драйвера
+service = Service(ChromeDriverManager().install())
+driver = webdriver.Chrome(service=service, options=options)
 
 """
 Специально для задачи со звездочкой
@@ -43,7 +53,13 @@ if data:
             check = soup.find_all(x1, class_=y1)
             print(check)
             if not check:
+                driver.get(url)
+                time.sleep(3)  # Ждём загрузки страницы
 
+                soup = BeautifulSoup(driver.page_source, "html.parser")
+                check = soup.find_all(x1, class_=y1)
+
+            print(check)
             print('___________________________________________________________________')
 
         # print(title, url, xpath)
