@@ -34,7 +34,7 @@ async def start_message(message: types.Message):
 
 @dp.message(lambda message: message.text == "Загрузить файл")
 async def request_file(message: types.Message):
-    await message.answer("📂 Пришлите Excel-файл в формате .xlsx или .xls.")
+    await message.answer("Пришлите Excel-файл в формате .xlsx или .xls.")
 
 
 if not os.path.exists("downloads"):
@@ -54,18 +54,30 @@ async def handle_file(message: types.Message):
     file = await bot.get_file(document.file_id)
     await bot.download_file(file.file_path, file_path)
 
-    await message.answer("✅ Файл загружен! Обрабатываю...")
+    await message.answer("Файл загружен! Обрабатываю...")
 
     try:
         df = pd.read_excel(file_path)
-        await message.answer(f"📊 Содержимое файла:\n{df.head().to_string()}")
-        for index, row in df.iterrows():
-            row['title'] = row['title'] if pd.notna(row['title']) else "Пусто"
-            row['url'] = row['url'] if pd.notna(row['url']) else "Пусто"
-            row['xpath'] = row['xpath'] if pd.notna(row['xpath']) else "Пусто"
 
-            insert_data(row['title'], row['url'], row['xpath'])  # Используем row, а не index
-            print(f"{index}: {row.to_dict()}")
+        if not {'title', 'url', 'xpath'}.issubset(df.columns):
+            await message.answer("Ошибка! Файл должен содержать колонки: title, url, xpath.")
+            return
+
+        df.fillna("Пусто", inplace=True)
+
+        for _, row in df.iterrows():
+            insert_data(row['title'], row['url'], row['xpath'])
+
+        df = df.head(5)
+
+        table_header = f"{'№':<3} | {'Название':<20} | {'Ссылка':<30} | {'XPath':<30}\n" + "-" * 90
+        table_rows = [
+            f"{index:<3} | {row['title'][:20]:<20} | {row['url'][:30]:<30} | {row['xpath'][:30]:<30}"
+            for index, row in df.iterrows()
+        ]
+        table_text = f"<pre>{table_header}\n" + "\n".join(table_rows) + "</pre>"
+
+        await message.answer(f"Данные из файла:\n{table_text}", parse_mode="HTML")
 
     except Exception as e:
         await message.answer(f"Ошибка при обработке файла: {e}")
